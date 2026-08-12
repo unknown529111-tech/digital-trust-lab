@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const net = require("node:net");
 const { createServer, threads } = require("../server.cjs");
+const { requestSuggestion, DEMO_SUGGESTION_TEXT } = require("../lib/openrouter.cjs");
 
 // Deterministic CI: never depend on a real provider key.
 process.env.OPENROUTER_API_KEY = "";
@@ -55,7 +56,7 @@ test("health reports demo mode without a provider key", async () => {
   });
 });
 
-test("suggest creates a pending suggestion with provenance", async () => {
+test("suggest returns a verified suggestion with provenance (evidence-in-the-loop)", async () => {
   await withServer(null, async (base) => {
     const r = await post(base, "/api/suggest", { task: "Explain privacy by design", threadId: "thread-1" });
     assert.equal(r.status, 201);
@@ -64,7 +65,44 @@ test("suggest creates a pending suggestion with provenance", async () => {
     assert.equal(j.suggestion.model, "stub-model");
     assert.equal(j.suggestion.uncertainty, 0.4);
     assert.match(j.suggestion.text, /privacy by design/);
+    // The evidence layer is non-optional: every suggestion carries claims + verdicts.
+    assert.ok(j.suggestion.verification.claims.length >= 1);
+    assert.ok(["passed", "partial", "failed"].includes(j.suggestion.verification.status));
     assert.equal(j.thread.total, 1);
+  });
+});
+
+test("DEMO SCENARIO: confident-but-wrong answer fails verification (1✓ 1◐ 1✗ + conflict)", async () => {
+  await withServer(requestSuggestion, async (base) => {
+    const r = await post(base, "/api/suggest", { task: "Tell me about the digital literacy program", threadId: "demo-thread" });
+    assert.equal(r.status, 201);
+    const j = await r.json();
+    assert.equal(j.suggestion.text, DEMO_SUGGESTION_TEXT);
+    assert.equal(j.suggestion.uncertainty, 0.91); // the model is confident…
+    assert.equal(j.suggestion.verification.status, "failed"); // …and wrong
+    assert.equal(j.suggestion.verification.conflicts, true);
+    assert.deepEqual(j.suggestion.verification.counts, { supported: 1, partial: 1, unsupported: 1, contradicted: 0 });
+    assert.equal(j.suggestion.verification.claims.length, 3);
+    assert.ok(j.suggestion.verification.claims[2].evidence.some((e) => e.contradicts));
+  });
+});
+
+test("a suggestion can be re-verified with another model while pending", async () => {
+  await withServer(requestSuggestion, async (base) => {
+    const created = await (await post(base, "/api/suggest", { task: "demo", threadId: "verify-thread" })).json();
+    const id = created.suggestion.id;
+    const r = await post(base, "/api/verify", { threadId: "verify-thread", suggestionId: id });
+    assert.equal(r.status, 200);
+    const j = await r.json();
+    assert.equal(j.ok, true);
+    assert.equal(j.suggestion.id, id);
+    assert.ok(j.suggestion.verification.claims.length === 3);
+    const verifiedEvents = created.thread.logLength; // count grows with the reverified event
+    assert.ok(j.thread.logLength >= verifiedEvents);
+    // Decided suggestions cannot be re-verified
+    await post(base, "/api/decide", { threadId: "verify-thread", suggestionId: id, decision: "approved", actor: "human" });
+    const denied = await post(base, "/api/verify", { threadId: "verify-thread", suggestionId: id });
+    assert.equal(denied.status, 400);
   });
 });
 
@@ -127,7 +165,7 @@ test("static serving: index, content types, path traversal blocked, 404s", async
     const index = await fetch(base + "/");
     assert.equal(index.status, 200);
     assert.match(index.headers.get("content-type"), /text\/html/);
-    assert.ok((await index.text()).includes("CoThink"));
+    assert.ok((await index.text()).includes("VeriLoop"));
 
     const css = await fetch(base + "/css/cothink.css");
     assert.equal(css.status, 200);
@@ -155,7 +193,7 @@ test("raw traversal attempts hit the path guard (403), never serve files", async
       const raw = await rawRequest(base, attack);
       const statusLine = raw.split("\r\n")[0] || "no response";
       assert.match(statusLine, /403|400|404/, `attack ${attack} must be refused, got ${statusLine}`);
-      assert.ok(!raw.includes("CoThink server"), `attack ${attack} must not leak server code`);
+      assert.ok(!raw.includes("module.exports"), `attack ${attack} must not leak server code`);
     }
   });
 });

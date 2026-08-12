@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="CoThink — an ethical human-AI collaboration workspace. The AI proposes, you decide. Every suggestion is provenance-tagged and requires human approval." />
+  <meta name="description" content="VeriLoop — an evidence-in-the-loop AI workspace. The AI proposes, the evidence layer grades every claim, and the human decides. No decision without evidence review." />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'" />
-  <title>CoThink — Human-AI Collaboration Workspace</title>
+  <title>VeriLoop — Evidence-in-the-Loop AI Workspace</title>
   <link rel="stylesheet" href="css/cothink.css" />
 </head>
 <body>
@@ -13,18 +13,19 @@
 
   <header class="site-header">
     <div class="bar">
-      <p class="brand"><strong>CoThink</strong> <span class="tag">human-in-the-loop</span></p>
+      <p class="brand"><strong>VeriLoop</strong> <span class="tag">evidence-in-the-loop</span></p>
       <p id="provider-status" class="provider-status" role="status">Checking provider…</p>
     </div>
   </header>
 
   <main id="main" class="wrap">
     <section aria-labelledby="ask-title" class="ask">
-      <h1 id="ask-title">The AI proposes. You decide.</h1>
+      <h1 id="ask-title">The AI proposes. The evidence speaks. You decide.</h1>
       <p class="lede">
-        Ask for a draft, a plan, or an analysis. The AI cannot edit your document, send anything,
-        or act anywhere — every suggestion is reviewed by you first, with its model, uncertainty
-        and risk flags visible. Nothing is applied without an explicit human approval.
+        Ask for a draft, a plan, or an analysis. The answer is split into individual claims,
+        each one graded against evidence (cross-checked by a second model), contradictions are
+        surfaced, and only then can a human approve or reject. An answer is not trusted because
+        it sounds confident — it is trusted because its claims survive verification.
       </p>
 
       <form id="ask-form">
@@ -35,7 +36,7 @@
           <p id="task-count" class="hint" aria-live="polite">0 / 2000</p>
         </div>
         <div class="row">
-          <button type="submit" id="ask-btn" class="primary">Ask for a suggestion</button>
+          <button type="submit" id="ask-btn" class="primary">Ask — proposal + evidence</button>
           <p id="ask-error" class="error" role="alert" aria-live="assertive"></p>
         </div>
       </form>
@@ -47,11 +48,40 @@
       <div id="queue"></div>
     </section>
 
+    <section aria-labelledby="dash-title" id="dash-section">
+      <h2 id="dash-title">The models are under test too</h2>
+      <p class="hint">
+        Every suggestion feeds this dashboard: which model produced how many claims, and how
+        many of them survived verification. VeriLoop does not just <em>use</em> AI — it
+        <em>measures</em> it (NIST TEVV: testing, evaluation, verification &amp; validation).
+      </p>
+      <div class="dash-wrap" role="region" aria-label="Verification dashboard by model">
+        <table class="dash" id="dash-table">
+          <caption class="visually-hidden">Verification results per model</caption>
+          <thead>
+            <tr>
+              <th scope="col">Model</th>
+              <th scope="col">Suggestions</th>
+              <th scope="col">Claims</th>
+              <th scope="col">Supported</th>
+              <th scope="col">Partial</th>
+              <th scope="col">Unsupported</th>
+              <th scope="col">Contradictions</th>
+              <th scope="col">Worst outcome</th>
+            </tr>
+          </thead>
+          <tbody id="dash-body">
+            <tr><td colspan="8" class="hint">No data yet — ask for a suggestion.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <section aria-labelledby="doc-title" id="doc-section">
       <h2 id="doc-title">Working document</h2>
       <p class="hint">
-        Human-approved content only. AI text enters this document solely through explicit approval —
-        and every block records which model produced it.
+        Human-approved content only. AI text enters this document solely through explicit
+        approval — and every block records which model produced it and how its claims fared.
       </p>
       <div id="document-view" class="document">
         <p class="hint">Nothing approved yet.</p>
@@ -62,8 +92,8 @@
       <details>
         <summary id="log-title">Interaction log (accountability trail)</summary>
         <p class="hint">
-          Every decision is recorded: which suggestion, which decision, and the human's reason for
-          rejecting. Export the log to keep an audit trail of the collaboration.
+          Every event is recorded: proposal, verification outcome, and each human decision with
+          its reason. Export the log to keep an audit trail of the collaboration.
         </p>
         <ul id="log-list" class="log"></ul>
         <button type="button" id="export-log" class="ghost">Export log (JSON)</button>
@@ -71,19 +101,21 @@
     </section>
 
     <section aria-labelledby="principles-title" class="principles">
-      <h2 id="principles-title">How this workspace earns trust</h2>
+      <h2 id="principles-title">How VeriLoop earns trust</h2>
       <ul class="plist">
-        <li><strong>Propose, never act</strong> — the engine refuses any transition that is not an explicit human decision.</li>
-        <li><strong>Provenance on every block</strong> — model id, model-reported uncertainty, and finish reason travel with the text.</li>
-        <li><strong>Risk flags, honestly labeled</strong> — heuristic bias patterns are surfaced but never presented as evaluation.</li>
-        <li><strong>Veto is first-class</strong> — rejecting requires a reason, and the reason is part of the audit log.</li>
+        <li><strong>Evidence-in-the-loop, enforced in code</strong> — the engine refuses any human decision on an unverified suggestion; no approval before evidence review.</li>
+        <li><strong>Claims, not vibes</strong> — every answer is decomposed into verifiable claims; each claim gets a verdict (supported / partial / unsupported / contradicted).</li>
+        <li><strong>Cross-checked, not self-graded</strong> — live mode verifies with a different model than the generator, so agreement is not baked in.</li>
+        <li><strong>Contradictions are loud</strong> — conflicting sources are flagged visually and in the audit log; verification can fail while the model was confident.</li>
+        <li><strong>Propose, never act</strong> — the AI cannot act on its own, and the human judges after seeing the evidence, not before.</li>
+        <li><strong>Models under test</strong> — the dashboard accumulates per-model claim survival rates (NIST TEVV; EU AI Act Art. 50 transparency).</li>
         <li><strong>Nothing stored server-side</strong> — threads are in-memory only; the log lives with you and is yours to export.</li>
       </ul>
     </section>
   </main>
 
   <footer class="site-footer">
-    <p>CoThink &copy; 2026 — human oversight by design (EU AI Act Art. 50 transparency; NIST AI RMF Govern/Measure; Amershi et al. 2019).</p>
+    <p>VeriLoop &copy; 2026 — evidence-in-the-loop by design (NIST AI RMF TEVV; EU AI Act Art. 50 &amp; July-2026 transparency guidance; Amershi et al. 2019). Evolved from CoThink.</p>
   </footer>
 
   <div id="announce" class="visually-hidden" aria-live="polite"></div>

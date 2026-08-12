@@ -1,7 +1,7 @@
 {
   "name": "cothink",
   "version": "1.0.0",
-  "description": "CoThink — an ethical human-AI collaboration workspace. The AI proposes, the human disposes: every suggestion carries provenance (model, uncertainty, bias flags) and needs explicit human approval before it can apply. No autonomous actions.",
+  "description": "VeriLoop (evolved from CoThink) — an evidence-in-the-loop AI workspace. The AI proposes, a verification layer decomposes the answer into claims and grades each one with a cross-check model, contradictions are surfaced, and the engine refuses any human decision on an unverified suggestion. No autonomous actions.",
   "private": true,
   "main": "server.cjs",
   "scripts": {

@@ -1,8 +1,21 @@
-/* CoThink server — thin HTTP layer over the decision engine + provider.
+/* VeriLoop server — thin HTTP layer over the decision engine, claim
+ * decomposer, and verification provider.
+ *
+ * API:
+ *   GET  /api/health            -> { ok, hasProvider }
+ *   POST /api/suggest           -> claim-split + verify the proposal, return
+ *                                  { suggestion (with claims+verification),
+ *                                    thread, hasProvider }
+ *   POST /api/verify            -> re-verify a pending suggestion with a
+ *                                  different (cross-check) model
+ *   POST /api/decide            -> human approve/reject (engine-enforced:
+ *                                  requires verification to have run)
+ *   GET  /                      -> static UI from ./public (path-guarded)
  *
  * Security posture:
- *   - Static files from ./public only; no directory traversal (path guard).
- *   - Input caps everywhere (task length, thread id shape).
+ *   - Static files from ./public only; no directory traversal (path guard,
+ *     exercised by raw-socket tests).
+ *   - Input caps everywhere (task length, thread id shape, body size).
  *   - No secrets in responses; API key lives in the environment.
  *   - CORS disabled: same-origin only. No cookies, no sessions, no tracking.
  *   - In-memory threads only (no persistence) — the interaction log is
@@ -13,8 +26,10 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
-const { requestSuggestion } = require("./lib/openrouter.cjs");
-const { newThread, createSuggestion, decide, summary } = require("./lib/decision-engine.cjs");
+const { requestSuggestion, verifyClaims } = require("./lib/openrouter.cjs");
+const { extractClaims } = require("./lib/claims.cjs");
+const { verifyClaimsPipeline } = require("./lib/verifier.cjs");
+const { newThread, createSuggestion, attachVerification, reverify, decide, summary } = require("./lib/decision-engine.cjs");
 
 const PORT = Number(process.env.PORT) || 4175;
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -61,7 +76,6 @@ const STATIC_TYPES = {
 function serveStatic(req, res) {
   let p = req.url.split("?")[0];
   if (p === "/") p = "/index.html";
-  // Path guard: resolve and verify containment (no ../ escapes).
   const resolved = path.resolve(PUBLIC_DIR, "." + p);
   if (!resolved.startsWith(PUBLIC_DIR + path.sep) && resolved !== path.join(PUBLIC_DIR, "index.html")) {
     send(res, 403, { error: "forbidden" });
@@ -77,12 +91,15 @@ function serveStatic(req, res) {
 
 function createServer(deps = {}) {
   const provider = deps.provider || requestSuggestion;
-  const engine = deps.decisionEngine || { newThread, createSuggestion, decide, summary };
+  const verifier = deps.verifier || verifyClaims;
+  const claims = deps.claimsExtractor || extractClaims;
+  const engine = deps.decisionEngine || { newThread, createSuggestion, attachVerification, reverify, decide, summary };
+
+  const hasProvider = () => Boolean(process.env.OPENROUTER_API_KEY);
 
   return http.createServer(async (req, res) => {
-    // SPA fallback is unnecessary (single page); unknown paths 404.
     if (req.method === "GET" && req.url === "/api/health") {
-      return send(res, 200, { ok: true, hasProvider: Boolean(process.env.OPENROUTER_API_KEY) });
+      return send(res, 200, { ok: true, hasProvider: hasProvider() });
     }
 
     if (req.method === "POST" && req.url === "/api/suggest") {
@@ -101,27 +118,63 @@ function createServer(deps = {}) {
       let thread = threads.get(threadId);
       if (!thread) { thread = engine.newThread({ threadId }); threads.set(threadId, thread); }
 
+      // 1) Generate the proposal.
+      let proposal;
       let suggestion;
       try {
-        const proposal = await provider({ task, model: body.model });
-        suggestion = engine.createSuggestion(thread, {
-          text: proposal.text,
-          model: proposal.model,
-          uncertainty: proposal.uncertainty,
-          uncertaintyNote: proposal.uncertaintyNote,
-          finishReason: proposal.finishReason,
-          source: proposal.source,
-        });
+        proposal = await provider({ task, model: body.model });
+        suggestion = engine.createSuggestion(thread, { ...proposal, task });
       } catch (e) {
-        const status = e.code === "PROVIDER_UNREACHABLE" ? 502 : 502;
-        return send(res, status, { error: e.message, code: e.code || "PROVIDER_ERROR" });
+        return send(res, 502, { error: e.message, code: e.code || "PROVIDER_ERROR" });
+      }
+
+      // 2) Evidence-in-the-loop: decompose into claims, verify each one.
+      let verification;
+      try {
+        const claimList = claims(proposal.text);
+        verification = await verifyClaimsPipeline({
+          claims: claimList,
+          provider: verifier,
+          task,
+          model: body.model || proposal.model,
+        });
+        engine.attachVerification(thread, suggestion.id, verification);
+      } catch (e) {
+        return send(res, 502, { error: `verification layer failed: ${e.message}`, code: e.code || "VERIFICATION_ERROR" });
       }
 
       return send(res, 201, {
         suggestion,
+        verification,
         thread: summary(thread),
-        hasProvider: Boolean(process.env.OPENROUTER_API_KEY),
+        hasProvider: hasProvider(),
       });
+    }
+
+    if (req.method === "POST" && req.url === "/api/verify") {
+      let body;
+      try { body = JSON.parse(await readBody(req)); }
+      catch { return send(res, 400, { error: "invalid JSON body" }); }
+      const thread = threads.get(String(body.threadId || ""));
+      if (!thread) return send(res, 404, { error: "thread not found" });
+      const suggestion = thread.suggestions.find((s) => s.id === String(body.suggestionId || ""));
+      if (!suggestion) return send(res, 404, { error: "suggestion not found" });
+      if (suggestion.status !== "pending") return send(res, 400, { error: "only pending suggestions can be re-verified" });
+
+      try {
+        const claimList = claims(suggestion.text);
+        const verification = await verifyClaimsPipeline({
+          claims: claimList,
+          provider: verifier,
+          task: suggestion.task || "",
+          model: body.model,
+        });
+        if (suggestion.verification) engine.reverify(thread, suggestion.id, verification);
+        else engine.attachVerification(thread, suggestion.id, verification);
+        return send(res, 200, { ok: true, suggestion: thread.suggestions.find((s) => s.id === suggestion.id), verification, thread: summary(thread) });
+      } catch (e) {
+        return send(res, 502, { error: `verification layer failed: ${e.message}`, code: e.code || "VERIFICATION_ERROR" });
+      }
     }
 
     if (req.method === "POST" && req.url === "/api/decide") {
@@ -147,7 +200,7 @@ function createServer(deps = {}) {
 if (require.main === module) {
   const server = createServer();
   server.listen(PORT, () => {
-    console.log(`CoThink running at http://localhost:${PORT} (provider ${process.env.OPENROUTER_API_KEY ? "configured" : "DEMO MODE"})`);
+    console.log(`VeriLoop running at http://localhost:${PORT} (provider ${process.env.OPENROUTER_API_KEY ? "configured" : "DEMO MODE"})`);
   });
 }
 

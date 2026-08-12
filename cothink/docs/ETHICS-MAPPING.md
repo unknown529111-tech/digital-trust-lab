@@ -104,3 +104,38 @@ demonstration of the discipline, and documents that positioning honestly.
 - Demo mode (no API key) returns canned output — clearly labeled, but
   useless for real work without configuration.
 - The log is user-held evidence, not cryptographic non-repudiation.
+
+## 6. VeriLoop — the evidence layer (2026 update)
+
+CoThink evolved into **VeriLoop**: *evidence-in-the-loop*. The AI proposes,
+a verification layer grades every claim, and only then may a human decide —
+the engine refuses any decision on an unverified suggestion (tested, not
+promised). Mapping to the current regulatory and research landscape:
+
+| Source (verified current, Aug 2026) | What it demands | Where VeriLoop implements it |
+|---|---|---|
+| NIST AI RMF — **TEVV** (testing, evaluation, verification & validation; AI 100-1 §4, AI 100-2 Eval & GenAI profile) | Verify outputs, don't trust reported confidence; validate continuously | `lib/verifier.cjs` grades each claim; `lib/claims.cjs` decomposes answers; dashboard accumulates per-model survival rates |
+| NIST 2026 AI evaluation / agentic-systems work (announced 2026) | Evaluate the *system* and its outputs, including agentic pipelines | Cross-check model ≠ generator model (default `claude-3.5-haiku` vs `gpt-4o-mini`) so agreement isn't baked in; `/api/verify` re-runs with another model |
+| EU AI Act Art. 50 + July-2026 transparency guidance (obligations applying from Aug 2026) | Notify users they interact with AI output; make limits clear | Permanent demo/live banner; "self-reported confidence — claims are the real test" label; provenance on every card |
+| Amershi et al. 2019, **G2 / G4 / G11** | Clear limits + context + reasons | Claim verdicts, contradiction flags, evidence sources shown before the approve button |
+| OWASP LLM Top 10 (2025) — LLM05 (insecure output handling), LLM06 (excessive agency) | Don't let model output flow into actions; constrain agency | Propose-only engine; no autonomous mode; claim evidence is user-visible before any approve |
+
+**Why "evidence-in-the-loop" is stronger than "human-in-the-loop":**
+human-in-the-loop places the human at the end of a pipe; evidence-in-the-loop
+interposes a verification step the human *must* see. VeriLoop's engine enforces
+this with a state-machine guard (`decide()` throws on unverified suggestions),
+which makes the commitment structural, not rhetorical.
+
+**The demo is the point:** with no API key the app runs a deterministic
+scenario in which the model reports 91% confidence while verification fails
+(1 supported / 1 partial / 1 unsupported + a contradicting source). The
+lesson — *confidence is not correctness* — is experienced, not narrated.
+Fresh limitations introduced by the evidence layer:
+
+- Claim decomposition is a **pattern heuristic** (English-oriented), so claim
+  boundaries can be wrong; filings are presented as heuristic.
+- Live evidence comes from a second model's knowledge, **not from
+  search-indexed sources**; a search-backed evidence provider is a documented
+  extension point, not yet shipped.
+- The dashboard measures claim survival per model — an operational metric
+  for humans, not a scientific benchmark.
