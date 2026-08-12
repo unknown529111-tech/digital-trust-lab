@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="BridgeNet — a community knowledge portal designed for digital inclusion: works on slow connections, with screen readers, keyboards, and in high contrast." />
+  <meta name="theme-color" content="#0f3d3e" />
+  <title>BridgeNet — Knowledge for Everyone</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f3d3e'/%3E%3Cpath d='M8 11h16M8 16h16M8 21h10' stroke='%23ffd166' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="css/app.css" />
+  <!-- Early init: apply saved preferences before first paint to avoid flashing and honor user settings (FOUC rule). -->
+  <script>
+    (function () {
+      try {
+        var p = JSON.parse(localStorage.getItem("bridgenet_prefs_v1") || "{}");
+        var d = document.documentElement;
+        if (p.theme === "high-contrast") d.setAttribute("data-theme", "high-contrast");
+        if (p.fontScale && p.fontScale !== "md") d.setAttribute("data-font", p.fontScale);
+        if (p.textOnly) d.setAttribute("data-text-only", "on");
+        if (p.lang === "ar") {
+          d.setAttribute("lang", "ar");
+          d.setAttribute("dir", "rtl");
+          d.setAttribute("data-lang", "ar");
+        }
+      } catch (e) { /* storage unavailable — default state is fine */ }
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container header-row">
+      <p class="brand" aria-label="BridgeNet home">
+        <span class="brand-mark" aria-hidden="true">&#8801;</span>
+        <strong>BridgeNet</strong>
+        <span class="brand-tag" lang="ar">الجسر الرقمي</span>
+      </p>
+
+      <section aria-label="Appearance and language settings" class="toolbar" data-i18n-aria="toolbarLabel">
+        <div class="toolbar-group" role="group" aria-label="Text size" data-i18n-aria="textSize">
+          <button type="button" class="tool" data-font-action="sm" aria-label="Smaller text" data-i18n-aria="fontSmall">A&#8722;</button>
+          <button type="button" class="tool" data-font-action="md" aria-label="Default text size" data-i18n-aria="fontMd">A</button>
+          <button type="button" class="tool" data-font-action="lg" aria-label="Larger text" data-i18n-aria="fontLg">A&#43;</button>
+        </div>
+        <div class="toolbar-group" role="group" aria-label="Display options" data-i18n-aria="displayOptions">
+          <button type="button" class="tool" id="contrast-toggle" aria-pressed="false" data-i18n="contrast">High contrast</button>
+          <button type="button" class="tool" id="textonly-toggle" aria-pressed="false" data-i18n="textOnly">Text only</button>
+        </div>
+        <button type="button" class="tool tool-lang" id="lang-toggle" aria-label="Switch language to Arabic" lang="ar">العربية</button>
+      </section>
+    </div>
+  </header>
+
+  <nav class="site-nav" aria-label="Primary">
+    <div class="container">
+      <ul>
+        <li><a href="#topics" aria-current="page" data-i18n="navTopics">Topics</a></li>
+        <li><a href="#services" data-i18n="navServices">Local services</a></li>
+        <li><a href="#about" data-i18n="navAbout">About</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main id="main" class="container">
+    <div id="offline-note" role="status" hidden>
+      You are offline. Showing saved content — connectivity will return automatically.
+    </div>
+
+    <section aria-labelledby="page-title" class="hero">
+      <h1 id="page-title">Knowledge for everyone</h1>
+      <p class="lede" id="page-lede">
+        Practical guides to getting online, staying safe, and using technology with confidence.
+        Built for low-bandwidth connections, screen readers, keyboards, and any device.
+      </p>
+
+      <div class="search-row">
+        <label for="search-input" class="visually-hidden">Search topics</label>
+        <input id="search-input" type="search" placeholder="Search topics…" autocomplete="off" />
+        <button type="button" id="search-clear">Clear search</button>
+      </div>
+      <div id="search-status" class="visually-hidden" aria-live="polite"></div>
+
+      <fieldset class="filters">
+        <legend data-i18n="filterLegend">Filter by topic</legend>
+        <div class="filter-row">
+          <button type="button" class="chip" data-topic="all" aria-pressed="true" data-i18n="fAll">All</button>
+          <button type="button" class="chip" data-topic="get-online" aria-pressed="false" data-i18n="fOnline">Getting online</button>
+          <button type="button" class="chip" data-topic="safety" aria-pressed="false" data-i18n="fSafety">Safety &amp; privacy</button>
+          <button type="button" class="chip" data-topic="accessibility" aria-pressed="false" data-i18n="fAccess">Accessibility</button>
+          <button type="button" class="chip" data-topic="ai" aria-pressed="false" data-i18n="fAi">AI for everyone</button>
+        </div>
+      </fieldset>
+    </section>
+
+    <section aria-labelledby="topics-title" id="topics">
+      <h2 id="topics-title">Learning topics</h2>
+
+      <article class="card" data-topic="get-online">
+        <h3>1. The digital divide: what it is and why it matters</h3>
+        <p>
+          The digital divide is the gap between people who can use the internet and technology
+          confidently, and people who cannot — because of cost, coverage, language, disability, or skills.
+          Closing it means designing for everyone, from the start: slow connections, older devices,
+          screen readers, and multiple languages.
+        </p>
+        <details>
+          <summary>Why this matters to you</summary>
+          <p>
+            Nearly half the world is still offline or under-connected. When services move online —
+            health, school, government, work — people without reliable access get left further behind.
+            Small choices (lightweight pages, offline support, plain language) are what make inclusion real.
+          </p>
+        </details>
+      </article>
+
+      <article class="card" data-topic="get-online">
+        <h3>2. Getting online for less</h3>
+        <p>
+          You do not need the newest phone or the fastest plan. Learn about low-cost data packages,
+          community Wi-Fi points, public library terminals, and apps that work well on weak connections.
+          Tip: enable "data saver" in your browser and use text-based or "lite" versions of popular sites.
+        </p>
+      </article>
+
+      <article class="card" data-topic="safety">
+        <h3>3. Safety &amp; privacy basics</h3>
+        <p>
+          Your first line of defense is habits: use a long, unique password for every account; turn on
+          two-step verification; update your phone and apps; and treat unexpected links and messages with
+          suspicion. If something asks for money or passwords urgently, it is almost always a scam.
+        </p>
+        <details>
+          <summary>Three quick wins</summary>
+          <ul>
+            <li>Turn on two-step verification for email and banking.</li>
+            <li>Use a password manager instead of reusing passwords.</li>
+            <li>Check your privacy settings in social apps once a year.</li>
+          </ul>
+        </details>
+      </article>
+
+      <article class="card" data-topic="accessibility">
+        <h3>4. Accessibility features already in your phone</h3>
+        <p>
+          Most phones include free tools: larger text, high-contrast display, screen reader (TalkBack /
+          VoiceOver), voice typing, and magnification. You can usually find them under
+          Settings &rarr; Accessibility. These features are not "extras" — they are how technology
+          becomes usable for people with low vision, limited mobility, or who prefer listening to reading.
+        </p>
+      </article>
+
+      <article class="card" data-topic="get-online">
+        <h3>5. Using public services online</h3>
+        <p>
+          Government portals handle benefits, IDs, health records, and taxes. Before you start, collect
+          your documents, use an official domain, and never share your password or OTP with anyone who
+          calls or messages you. When a portal is hard to use, ask a trusted person or use the help line —
+          good services have human support too.
+        </p>
+      </article>
+
+      <article class="card" data-topic="ai">
+        <h3>6. AI for everyone — and where to stay careful</h3>
+        <p>
+          AI tools can translate, summarize, caption videos, and read text aloud — real inclusion gains.
+          But they can also be wrong, and they train on data that reflects existing biases. Rule of thumb:
+          use AI for drafting and understanding, verify facts yourself, and never paste secrets into tools.
+          AI should ask before acting, and you should always be able to say no.
+        </p>
+        <details>
+          <summary>A simple AI checklist</summary>
+          <ul>
+            <li>Assume the AI can be wrong; check important claims.</li>
+            <li>Do not share passwords, IDs, or bank details with chatbots.</li>
+            <li>Keep a human in the loop for decisions that affect your life.</li>
+          </ul>
+        </details>
+      </article>
+    </section>
+
+    <section aria-labelledby="services-title" id="services">
+      <h2 id="services-title">Local services (sample directory)</h2>
+      <ul class="services">
+        <li><a href="#services"><strong>Community computer classes</strong></a><br />Free weekly sessions, all levels. City Hall, Room 12.</li>
+        <li><a href="#services"><strong>Affordable devices program</strong></a><br />Certified refurbished phones and laptops, low cost.</li>
+        <li><a href="#services"><strong>Phone interpretation helpdesk</strong></a><br />Support in 12 languages for government services.</li>
+        <li><a href="#services"><strong>Job search corner</strong></a><br />Help building a resume and applying online. Library, floor 2.</li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="about-title" id="about">
+      <h2 id="about-title">About BridgeNet</h2>
+      <p id="about-body">
+        BridgeNet is a demonstration portal for digital inclusion. It weighs under 60&nbsp;KB, works offline,
+        supports Arabic and English, passes automated WCAG&nbsp;2.2&nbsp;AA audits, and runs on
+        a 2G connection. <a href="https://github.com/unknown529111-tech/digital-trust-lab/tree/main/bridgenet">
+        Read the technical documentation</a> for the full accessibility statement.
+      </p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-row">
+      <p data-i18n="footer">&copy; 2026 BridgeNet — made for digital inclusion. All content is educational sample data.</p>
+      <ul class="footer-links">
+        <li><a href="#main" data-i18n="backTop">Back to top</a></li>
+        <li><a href="#about" data-i18n="a11yStatement">Accessibility statement</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <div id="live-announce" class="visually-hidden" aria-live="polite"></div>
+
+  <script src="js/app.js" defer></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").catch(function () { /* offline support is progressive */ });
+    }
+  </script>
+</body>
+</html>

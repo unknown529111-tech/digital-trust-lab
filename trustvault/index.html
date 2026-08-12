@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="TrustVault — a zero-knowledge, client-side encrypted vault. Your secrets never leave this device in plaintext. No account, no tracking, no server." />
+  <meta name="referrer" content="no-referrer" />
+  <!-- Network-less security posture: the page cannot make any outbound request. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'" />
+  <title>TrustVault — Zero-Knowledge Vault</title>
+  <link rel="stylesheet" href="css/vault.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="bar">
+      <p class="brand"><strong>TrustVault</strong> <span class="tag">zero-knowledge</span></p>
+      <div class="status-wrap">
+        <p id="lock-status" role="status" class="lock-status">Locked</p>
+        <button type="button" id="lock-now" class="ghost" hidden>Lock now</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+
+    <section id="unlock-panel" aria-labelledby="unlock-title">
+      <h1 id="unlock-title">Unlock your vault</h1>
+      <p class="lede">
+        Your passphrase never leaves this device. It is stretched 600,000 times
+        (PBKDF2) into a 256-bit key that encrypts every entry with AES-GCM.
+        There is no server, no account, and no way to recover a forgotten passphrase.
+      </p>
+      <p id="first-run-hint" class="hint" hidden>First visit? This passphrase <strong>creates</strong> the vault and encrypts it. There is no recovery — keep it safe.</p>
+
+      <form id="unlock-form">
+        <div class="field">
+          <label for="passphrase">Master passphrase</label>
+          <div class="pw-row">
+            <input type="password" id="passphrase" name="passphrase" autocomplete="current-password"
+                   minlength="8" required aria-describedby="passphrase-hint unlock-error" />
+            <button type="button" id="toggle-passphrase" class="ghost" aria-pressed="false">Show</button>
+          </div>
+          <p id="passphrase-hint" class="hint">At least 8 characters — but longer is dramatically better. A 16+ character phrase beats any password policy.</p>
+        </div>
+        <div class="row">
+          <button type="submit" class="primary" id="unlock-submit">Unlock</button>
+          <p id="unlock-error" class="error" role="alert" aria-live="assertive"></p>
+        </div>
+      </form>
+      <noscript><p class="error">TrustVault requires JavaScript — all cryptography runs locally in your browser.</p></noscript>
+    </section>
+
+    <section id="vault-panel" aria-labelledby="vault-title" hidden>
+      <div class="vault-head">
+        <h1 id="vault-title">Your vault</h1>
+        <div class="vault-actions">
+          <label class="inline-label" for="lock-timer">Auto-lock after
+            <select id="lock-timer">
+              <option value="60">1 minute</option>
+              <option value="300" selected>5 minutes</option>
+              <option value="900">15 minutes</option>
+            </select>
+          </label>
+          <button type="button" id="new-entry" class="primary">New entry</button>
+          <button type="button" id="export" class="ghost">Export (encrypted)</button>
+          <button type="button" id="import" class="ghost">Import</button>
+          <input type="file" id="import-file" accept="application/json,.json" hidden />
+        </div>
+      </div>
+
+      <p id="vault-msg" class="hint" role="status" aria-live="polite"></p>
+
+      <section aria-labelledby="entry-form-title" id="entry-form-panel" hidden>
+        <h2 id="entry-form-title">New entry</h2>
+        <form id="entry-form">
+          <div class="grid2">
+            <div class="field">
+              <label for="e-title">Title</label>
+              <input type="text" id="e-title" name="title" required autocomplete="off" maxlength="200" />
+            </div>
+            <div class="field">
+              <label for="e-username">Username</label>
+              <input type="text" id="e-username" name="username" autocomplete="off" maxlength="200" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="e-secret">Secret / password</label>
+            <div class="pw-row">
+              <input type="text" id="e-secret" name="secret" autocomplete="off" maxlength="500" />
+              <button type="button" id="generate" class="ghost">Generate strong</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="e-note">Note</label>
+            <textarea id="e-note" name="note" rows="3" autocomplete="off" maxlength="2000"></textarea>
+          </div>
+          <div class="row">
+            <button type="submit" class="primary" id="entry-save">Save entry</button>
+            <button type="button" id="entry-cancel" class="ghost">Cancel</button>
+            <p id="entry-error" class="error" role="alert" aria-live="assertive"></p>
+          </div>
+        </form>
+      </section>
+
+      <section aria-labelledby="entries-title">
+        <h2 id="entries-title">Entries <span id="entry-count" class="count"></span></h2>
+        <ul id="entries-list" class="entries"></ul>
+        <p id="entries-empty" class="hint">No entries yet — add your first secret.</p>
+      </section>
+    </section>
+
+    <section aria-labelledby="how-title" class="how">
+      <h2 id="how-title">How your data stays private</h2>
+      <ol class="how-list">
+        <li><strong>Derive</strong> — your passphrase is stretched with PBKDF2-SHA-256 (600,000 iterations, per-vault salt) into a 256-bit key. The key is non-extractable and exists only in memory while unlocked.</li>
+        <li><strong>Encrypt</strong> — each entry is sealed with AES-256-GCM using a fresh random 96-bit IV. Titles, usernames, secrets and notes are all ciphertext.</li>
+        <li><strong>Bind</strong> — every ciphertext is authenticated against its entry id, so entries cannot be swapped or reordered unnoticed.</li>
+        <li><strong>Store locally</strong> — the encrypted vault lives in your browser's storage or in a file you export. Nobody else can read it: not us, not a provider — nobody.</li>
+      </ol>
+      <p class="hint">
+        No telemetry, no network requests (this page's Content-Security-Policy blocks
+        <code>connect-src</code> entirely), no accounts. Read the
+        <a href="docs/THREAT-MODEL.md" target="_blank" rel="noopener">STRIDE threat model</a> for the full analysis.
+      </p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>TrustVault &copy; 2026 — a privacy-by-design demonstration. Keys are derived locally; nothing is transmitted.</p>
+  </footer>
+
+  <script type="module" src="js/vault-app.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "trustvault",
+  "version": "1.0.0",
+  "description": "TrustVault — zero-knowledge, client-side encrypted vault. AES-256-GCM + PBKDF2-SHA-256 (600k iterations, OWASP-aligned). Server never sees plaintext (there is no server).",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "serve": "npx --yes serve . -l 4174"
+  },
+  "devDependencies": {
+    "jsdom": "^30.0.1"
+  }
+}

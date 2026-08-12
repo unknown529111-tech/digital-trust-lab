@@ -1,0 +1,20 @@
+{
+  "name": "BridgeNet — Knowledge for Everyone",
+  "short_name": "BridgeNet",
+  "description": "Accessible, low-bandwidth community knowledge portal for digital inclusion.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fdfbf5",
+  "theme_color": "#0f3d3e",
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

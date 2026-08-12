@@ -1,0 +1,16 @@
+{
+  "name": "bridgenet",
+  "version": "1.0.0",
+  "description": "BridgeNet — an accessible, low-bandwidth community knowledge portal (digital inclusion). WCAG 2.2 AA, offline PWA, bilingual EN/AR.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "audit": "node scripts/audit.mjs",
+    "test": "npm run audit",
+    "serve": "npx --yes serve . -l 4173"
+  },
+  "devDependencies": {
+    "axe-core": "^4.10.0",
+    "jsdom": "^24.1.3"
+  }
+}

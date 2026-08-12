@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: BridgeNet — WCAG 2.2 audit (axe-core, 3 DOM states)
+        working-directory: bridgenet
+        run: |
+          npm install --no-fund --no-audit
+          npm run audit
+
+      - name: TrustVault — crypto + UI tests
+        working-directory: trustvault
+        run: |
+          npm install --no-fund --no-audit
+          npm test
+
+      - name: CoThink — engine + API + attack tests
+        working-directory: cothink
+        run: npm test
+
+      - name: Repo hygiene — no stray secrets
+        run: |
+          if grep -rIl --exclude-dir=node_modules -E "(BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY|sk-or-v1-[a-zA-Z0-9]{20})" . ; then
+            echo "Secrets found — failing"; exit 1
+          fi
+          echo "No secrets in repo."
