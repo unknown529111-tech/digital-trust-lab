@@ -1,46 +1,80 @@
-# TrustVault — Zero-Knowledge Vault
+# TrustVault — خزنة الثقة
 
-**Tier 2 · Trust, Privacy & Security**
+**التير 2 · الثقة والخصوصية والأمان في العالم الرقمي**
 
-A client-side encrypted vault with **no server, no accounts, no tracking**:
-your secrets are sealed with AES-256-GCM under a key derived from your
-passphrase via PBKDF2-HMAC-SHA-256 (**600,000 iterations** — OWASP-aligned),
-and never leave your device. The page's CSP even blocks outbound network
-connections (`connect-src 'none'`): there is literally no channel for the
-data to leak through.
+خزنة تشفير بمعمارية **صفر معرفة (zero-knowledge)**: مفيش سيرفر، مفيش حسابات، مفيش تتبع — سرك بيتقفل بـ AES-256-GCM ومفتاح متشتق من الباسورد بتاعك بـ PBKDF2 (600,000 تكرار، حسب توصيات OWASP)، ومبيسبش جهازك أبداً. صفحة التطبيق نفسها بتمنع أي اتصال بالنت خالص (CSP: `connect-src 'none'`) — يعني حرفياً مفيش قناة تسريب أصلاً.
 
-## Features
+---
 
-- Zero-knowledge by construction: titles, usernames, secrets, notes — all ciphertext
-- Per-entry random IV + **AEAD entry-binding** (swapping/reordering entries is detected)
-- Non-extractable key, wiped from memory on **auto-lock** (1/5/15 min) or manual lock
-- Strong password generator (crypto-RNG, all classes, no ambiguous chars)
-- **Clipboard auto-clear** 10 s after copying a secret
-- Encrypted export/import (JSON), two-step confirmation on import & delete
-- No-JS nothing to leak: the app refuses to run without WebCrypto (`noscript` note)
+## إيه المشروع ده وليه عملته؟
 
-## Run
+مشكلة الثقة في العالم الرقمي بقت واضحة: بياناتك بتتحفظ عند ناس تانيين، وأي خرق سيرفر = بياناتك في إيد الغلط. الحل الجذري مش "سياسة خصوصية أحسن" — الحل إنك **تكون المالك الوحيد للمفتاح**، والمكان اللي بيتخزن فيه (جهازك) يكون مش مفهوم لأي حد تاني.
+
+عملت TrustVault عشان أتدرب على الأمان **الحقيقي** — مش الشكليات. يعني: أهدد التطبيق بنفسي في وثيقة تهديدات (STRIDE)، أبني ضد الهجمات المعروفة، وأكتب اختبارات تثبت إن الحماية شغالة مش إنها "مفروض تكون شغالة".
+
+## الرحلة: إزاي اتبنى خطوة بخطوة
+
+**1) البحث الأول — عشان متبناش على نسخة قديمة.**
+أهم حاجة اكتشفتها في البحث: **OWASP Top 10 الإصدار الحالي هو 2025** — نسخة 2021 بقت "superseded" وكتير لسه شغالين عليها بالغلط. كمان رجعت لتوصيات OWASP لتخزين الباسوردات: PBKDF2-HMAC-SHA-256 بـ **600,000 تكرار** للإدخالات التفاعلية. دي الأرقام اللي دخلت الكود، مش أرقام من عندي.
+
+**2) قرار جوهري: الكريبتو في ملف منفصل نضيف.**
+`js/crypto.mjs` ملف كريبتو خالص (من غير أي DOM) — يشتغل في المتصفح وفي Node.js عادي. يعني الاختبارات بتجري **نفس الكود اللي بيشتغل عند المستخدم بالظبط**، مش نسخة مقلدة. و`vault-app.js` (طبقة الواجهة) مكتوب بـ dependency injection — فقدرت أختبر تجربة المستخدم كاملة في بيئة jsdom: إنشاء الخزنة، رفض الباسورد الغلط، إضافة/كشف/حذف/قفل.
+
+**3) الاختيارات التشفيرية — وليه بالظبط:**
+- **AES-256-GCM** بدل CBC: الـ GCM "تشفير مصادَق" — أي تعديل على أي بايت في النص المشفر بيتكشف فوراً وقت الفك (اختبار مكتوب: `tampered ciphertext` بيفشل).
+- **IV عشوائي لكل إدخال**: نفس الباسورد ميعملش نفس التشفير مرتين — مفيش أنماط تتكشف.
+- **AAD entry-binding**: كل إدخال بيتشفّر مع "additional authenticated data" فيها معرّف الإدخال نفسه. يعني لو حد بدّل إدخالين مكان بعض (reorder attack)، الفك بيفشل — الاختبار بيثبت ده حرفياً.
+- **المفتاح غير قابل للتصدير**: `extractable: false` — أي محاولة `exportKey` بتلقي خطأ. المفتاح موجود في الذاكرة بس، وبيتسحب عند القفل.
+- **مفيش مكتبات وقت تشغيل خالصة**: صفر اعتماديات = صفر سلسلة توريد (supply chain) ممكن تنخترق.
+
+**4) التصميم الدفاعي للواجهة:**
+- **مفيش `innerHTML` مع بيانات المستخدم خالص** — كل الرندر بـ `textContent`/`createElement` — أقفل باب الـ XSS من جذره.
+- **CSP صارم**: `script-src 'self'` بدون inline + `connect-src 'none'` — حتى لو فيه ثغرة، مفيش مكان تتبعت منه البيانات.
+- **auto-lock** (1/5/15 دقيقة) + قفل يدوي — الخزنة بتقفل لو نسيت.
+- **مسح الكليبورد بعد 10 ثواني** — السر اللي نسخته مبيقاش عايش في الكليبورد.
+- **مولّد باسوردات** بـ crypto-RNG، كل الفئات مضمونة، من غير حروف لبّاسة (0/O، 1/l).
+- **تصدير/استيراد مشفر** بخطوتين تأكيد — عشان الـ backup من غير ما السر يتكشف.
+
+## وثيقة التهديدات: صراحة قبل الكلام الحلو
+
+كتبت [تحليل STRIDE كامل](docs/THREAT-MODEL.md) — كل نوع تهديد (Spoofing, Tampering, Repudiation, Info Disclosure, DoS, Elevation of Privilege) وليه رد صريح:
+
+- **مضمون ومختبر**: السر مبيسبش المتصفح أبداً (مفيش قناة أصلاً) · أي تلاعب بالبيانات المخزنة بيتكشف · المفتاح مستحيل يتصدّر من WebCrypto · تبديل الإدخالات بيفشل.
+- **متبقٍ ومكتوب بصراحة** (مش مخبي): لو المتصفح نفسه مخترق (إضافة/مالوير) مفيش حاجة تقدر تحمي — ده حد معروف لكل الأنظمة · الـ JS في الذاكرة مش ممكن يتصفر — بنسحب المرجع والقفل، والـ GC بيلم الباقي · مسح الكليبورد "أفضل مجهود" حسب نظام التشغيل · وقوة الباسورد هي آخر خط دفاع — 4 كلمات عشوائية بتفرق أكتر من أي كود.
+
+وكمان عملت جدول **OWASP Top 10: 2025** كامل: كل بند وإما متعالج (مثل A02 Cryptographic Failures، A07 Auth، A08 Data Integrity) أو مش بينطبق على التصميم (مثل A01 — مفيش حسابات أصلاً) — ومكتوب ده في الجدول نفسه.
+
+## الأرقام اللي بتقول إنه تمام
+
+- **15/15 اختبار** ناجحين، منهم:
+  - فك تشفير ناجح + رفض الباسورد الغلط
+  - كشف التلاعب: IV متعدل، ciphertext متعدل
+  - كشف تبديل الإدخالات (AAD swap)
+  - رفض تصدير المفتاح
+  - تدفق واجهة كامل: إنشاء ← قفل ← فتح ← إضافة ← كشف ← حذف ← auto-lock
+- صفر اعتماديات وقت تشغيل
+- مفيش أي طلب شبكة في التطبيق (مقفول بالـ CSP)
+
+## إيه اللي هعمله مختلف لو رجعت الأول؟
+
+- **Argon2id** بدل PBKDF2 — أقوى ضد هجمات الـ GPU، بس WebCrypto مابيدعمهوش native فهحتاج WASM. ملاحظة: PBKDF2 بـ 600k لسه اختيار سليم ومقبول، لكن Argon2 هو الأحدث.
+- أضيف مقياس قوة باسورد حقيقي (تقدير entropy) بدل النص الإرشادي بس.
+- أجرب WebAuthn/Passkey كمصدر مفتاح إضافي (بديل الباسورد اللي بيتحفظ).
+- سجل تدقيق داخل الخزنة نفسها (آخر مرة اتفتحت، إيه اللي اتعدل) — محمي بالتشفير.
+
+## تشغيله عندك
 
 ```bash
+cd trustvault
 npm install
-npm run serve      # http://localhost:4174 — fully offline-capable
+npm run serve          # http://localhost:4174 — شغال أوفلاين 100%
+
+# كل الاختبارات (كريبتو + واجهة):
+npm test
 ```
 
-## Verify
+## التوثيق الفني الكامل
 
-```bash
-npm test    # 15 tests: crypto, tamper, AAD swap, UI flows, auto-lock
-```
+- [تحليل STRIDE + خريطة OWASP Top 10: 2025](docs/THREAT-MODEL.md)
 
-## Docs
-
-- [STRIDE threat model + OWASP 2025 mapping](docs/THREAT-MODEL.md)
-
-## Files
-
-```
-js/crypto.mjs      # pure crypto core (browser + node:test)
-js/vault-app.js    # DI-wired UI layer (jsdom-tested)
-index.html         # CSP-hardened, semantic, keyboard-usable
-test/              # crypto + end-to-end UI suites
-```
+© 2026 — مشروع تدريبي تعليمي. ما تحطش فيه أسرار حقيقية 😄

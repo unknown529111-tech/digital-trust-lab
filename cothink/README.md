@@ -1,53 +1,91 @@
-# CoThink — Human-AI Collaboration Workspace
+# CoThink — مساحة عمل الإنسان والـ AI
 
-**Tier 3 · Human-AI Futures**
+**التير 3 · مستقبل الإنسان والـ AI**
 
-A working demonstration of ethical human-AI collaboration: the AI only ever
-*proposes*, and a human must explicitly *approve* before anything reaches
-the working document. Every suggestion travels with provenance — model id,
-model-reported uncertainty, finish reason, and heuristic risk flags — and
-every rejection requires a reason that lands in an exportable audit log.
+مساحة عمل تعاونية بتجسّد فكرة واحدة: **الـ AI بيقترح، والإنسان هو اللي بيقرر.** مفيش وضع "استقلالية" — مفيش flag ولا مفتاح سري ممكن يخلي الاقتراح يطبّق نفسه. كل اقتراح بيوصل ببطاقة هوية كاملة (اسم الموديل، نسبة عدم اليقين، نوع النهاية، علامة الوقت)، وكل رفض محتاج سبب بيتسجل في سجل تدقيق (audit log) تقدر تصدّره.
 
-## Features
+---
 
-- **Propose-only engine** (`lib/decision-engine.cjs`): `decide()` refuses any
-  non-human actor — enforced in code, covered by tests
-- **Provenance on every suggestion**: model, uncertainty (model-reported),
-  finish reason, timestamps
-- **Heuristic risk flags** (age/gender/ability/absolutism/sensitive-data),
-  honestly labeled as heuristics
-- **Veto with mandatory reason** recorded in the interaction log
-- **Working document** contains only human-approved blocks, each with its
-  provenance line
-- **Exportable audit log** (JSON)
-- **Demo mode without API key** — full workflow testable offline; live mode
-  via OpenRouter
-- **Hardened server**: no CORS, path-traversal guard (raw-socket tested),
-  input caps, no server-side persistence
+## إيه المشروع ده وليه عملته؟
 
-## Run
+السؤال الحقيقي في نقاشات الـ AI مش "هياخد شغلنا ولا لأ؟" — السؤال الأعمق: **إزاي الإنسان والـ AI يشتغلوا مع بعض بشكل أخلاقي وفعال؟** ومعظم الإجابات الموجودة إما شعارات أو أوراق سياسات مبتتطبقش.
+
+عملت CoThink عشان أتدرب على الأخلاقيات **كمهندس**: الأخلاقيات هنا مش صفحة "قيمنا" — إنما **قيود في الكود** بتتختبر آلياً. لو الـ AI حاول يقرر من غير إذن، الـ engine بيرفض — مش بنصيحة، بالكود:
+
+- **Propose-only**: `decide()` بترفض أي قرار مصدره مش إنسان صريح (`actor: "human"`) — ومختبرة بكده.
+- **مفيش حاجة بتتطبّق من غير موافقة**: صفحة "الوثيقة العاملة" مش بتستقبل غير النصوص اللي الإنسان وافق عليها بيده — ومع كل نص سطر provenance (مين ولّده وإمتى).
+
+## الرحلة: إزاي اتبنى خطوة بخطوة
+
+**1) البحث الأول — القوانين والمعايير الحالية (أغسطس 2026).**
+- **EU AI Act (Regulation 2024/1689)**: ساري من أغسطس 2024، ومعظم التزاماته بتطبق من **أغسطس 2026** — يعني دلوقتي بالظبط. المواد اللي وجهت التصميم: **Art. 14 (الإشراف البشري)** — أي نظام لازم يقبل مراجعة وتجاوز ومقاطعة من الإنسان؛ **Art. 50 (الشفافية)** — النظام لازم يعلن إنه AI ويعلّم المحتوى الاصطناعي؛ **Art. 12 (حفظ السجلات)** — سجلات تتبع المخرجات.
+- **NIST AI RMF 1.0**: إطار إدارة مخاطر الـ AI الأمريكي — دوائره الأربع Govern / Map / Measure / Manage.
+- **Guidelines for Human-AI Interaction** (Amershi et al., CHI 2019) — الـ 18 قاعدة اللي اتبنى عليها Microsoft HAX.
+
+**2) القرار الجوهري: الأخلاقيات = state machine.**
+`lib/decision-engine.cjs` بيحتفظ بكل اقتراح في حالة (`pending` → `approved`/`rejected`)، والانتقال الوحيد المسموح هو قرار إنسان صريح. بمعنى:
+- الاقتراح اللي اتقفل ميتفتحش تاني ("already decided" — مختبرة)
+- قرار من غير سبب (للرفض) مرفوض — الحد الأدنى 3 حروف (مختبر)
+- الرفض سبب بيتسجل في اللوج (مختبر إنه لسه موجود بعد القرار)
+
+**3) الشفافية مش زينة — بيانات أول صنف:**
+كل اقتراح بينزل بـ:
+- **اسم الموديل** الفعلي اللي ولّده (لو مفيش موديل حقيقي، بينزل بـ "demo-mode" صريحة — مفيش انتحال هوية)
+- **عدم اليقين (uncertainty)** — والمهم: دي **اللي الموديل بلّغ عنها بنفسه**، واحنا بنقول في الواجهة إنها مش مقياس معايرة — مفيش ادعاءات زيادة
+- **finish reason** — إيه السبب اللي خلّى الموديل يوقّف
+- **بصمة وقت** لكل خطوة
+
+**4) الـ bias flags — بصراحة عن حدودها:**
+القواعد الهيرستيكية بتشوف أنماط معروفة (تعميم عن العمر/الجنس/القدرات، عبارات مطلقة زي "دايماً/أبداً"، طلب بيانات حساسة زي أرقام هوية). لكن الواجهة نفسها مكتوب فيها: **"heuristic — مش تقييم رسمي"**. الفكرة إنها جرس تنبيه للإنسان، مش محكمة عدل. لو لافظت على أي حاجة، الـ veto هو الحل الأول.
+
+**5) الرفض درجة أولى مش عكس الموافقة:**
+الرفض مش بس "لا" — بيطلب سبب، والسبب بيكمل مع الاقتراح في سجل التدقيق. كده أي حد يقرا اللوج بعد سنة يعرف **ليه** اتشال الفكرة — مفيد للمراجعة ومقاوم لـ "الموافقة العمياء".
+
+**6) الخادم محصّن — والبيانات مش بتتخزن:**
+- **مفيش CORS** (same-origin بس)، **path traversal محمي** — واختبرته بـ raw sockets بثلاث هجمات مختلفة (`/../server.cjs`، `%2f`، `%2e%2e`) كلهم اترفضوا. مفيش حد يقدر يطلّع كود السيرفر.
+- حدود صارمة على الإدخال (حجم الـ task، شكل الـ thread id).
+- **الـ threads في ذاكرة السيرفر بس** — مفيش قاعدة بيانات ولا تكرار — لو السيرفر اتخترق، مفيش تاريخ ينسرب. اللوج بيعيش معاك في المتصفح وتصدّره إنت.
+- الـ API key مبيخرجش في أي response — عايش في الـ environment بس.
+
+**7) Demo mode:**
+من غير `OPENROUTER_API_KEY`، كل الـ workflow بيشتغل بـ موديل تجريبي معنون بوضوح "demo-mode" — تبعت طلب، يجيلك اقتراح، توافق أو ترفض بكل الخطوات. يعني تقدّر تتمرن على تجربة كاملة أوفلاين، وفي الـ CI، من غير أي سرّ.
+
+## ليه الاختيارات دي بالظبط؟ (الخريطة القانونية)
+
+| الحاجة في الكود | ممكن اتبنت منين |
+|---|---|
+| منع أي قرار غير بشري | EU AI Act **Art. 14** (human oversight) |
+| بطاقة الموديل + تعليم المحتوى | EU AI Act **Art. 50** (transparency) |
+| سجل التدقيق القابل للتصدير | EU AI Act **Art. 12** (record-keeping) |
+| الحدود الواضحة بتاعة النظام | NIST AI RMF **G1/G2** (Govern) |
+| الهيرستيك معنون كهيرستيك | NIST AI RMF **Me1** (Measure — الصدق في القياس) |
+| "اللي بيحصل لما تعمل كده" واضح | Amershi et al. **G16/G17** |
+
+التفاصيل كاملة في [وثيقة ETHICS-MAPPING](docs/ETHICS-MAPPING.md) — كل مادة مقابل السطر بتاعها في الكود.
+
+## الأرقام اللي بتقول إنه تمام
+
+- **19/19 اختبار** ناجحين: 15 على محرك القرار (الرفض للإنسان الآلي، تكرار القرار، سبب الرفض، حدود الحجم، ظبط الـ uncertainty) + 4 على الخادم (عقود الـ API، رفض الإدخالات الغلط، هجمات الترافيرسال بـ raw sockets، 502 بدل crash لما المزود يقع)
+- صفر اعتماديات وقت تشغيل
+- مفيش تخزين دائم على السيرفر
+
+## إيه اللي هعمله مختلف لو رجعت الأول؟
+
+- **معايرة حقيقية للـ uncertainty**: أجمع سجلات القرارات وأقيس عملياً هل "الـ 80% بتاعة الموديل" بتعني 80% فعلاً — ده مشروع بحثي لوحده.
+- bias flags بلغات تانية (العربي أولهم — عشان المصريين 😄) — الهيرستيك الحالي إنجليزي بس.
+- دعم عربي للواجهة نفسها (RTL) — نفس خبرة BridgeNet.
+- تكامل مع تحديد مصادر فعلي (retrieval) عشان الـ uncertainty ينزل — السياق الحقيقي بيقلل التخمين.
+
+## تشغيله عندك
 
 ```bash
-npm start                          # demo mode → http://localhost:4175
-OPENROUTER_API_KEY=sk-or-... npm start   # live mode (see .env.example)
+cd cothink
+npm start                      # demo mode → http://localhost:4175
+OPENROUTER_API_KEY=sk-or-... npm start   # live mode (طريقة الإعداد في .env.example)
 ```
 
-## Verify
+## التوثيق الفني الكامل
 
-```bash
-npm test    # 19 tests: engine invariants, API contracts, traversal attacks
-```
+- [خريطة الأخلاقيات والقوانين: EU AI Act / NIST AI RMF / Amershi et al.](docs/ETHICS-MAPPING.md)
 
-## Docs
-
-- [Ethics & regulatory mapping — EU AI Act / NIST AI RMF / Amershi et al.](docs/ETHICS-MAPPING.md)
-
-## Files
-
-```
-server.cjs                 # thin HTTP layer (static + /api/{health,suggest,decide})
-lib/decision-engine.cjs    # propose-only state machine, bias flags, audit log
-lib/openrouter.cjs         # provider wrapper (injectable fetch, demo fallback)
-public/                    # the workspace UI (no build step)
-test/                      # 15 engine tests + 4 server/API/attack suites
-```
+© 2026 — مشروع تدريبي تعليمي.
