@@ -15,11 +15,11 @@ jobs:
         with:
           node-version: 22
 
-      - name: BridgeNet — WCAG 2.2 audit (axe-core, 3 DOM states)
+      - name: BridgeNet — WCAG 2.2 audit + contrast math (axe-core, 3 DOM states)
         working-directory: bridgenet
         run: |
           npm install --no-fund --no-audit
-          npm run audit
+          npm test
 
       - name: TrustVault — crypto + UI tests
         working-directory: trustvault

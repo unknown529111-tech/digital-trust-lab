@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "audit": "node scripts/audit.mjs",
-    "test": "npm run audit",
+    "contrast": "node scripts/contrast-check.mjs",
+    "test": "npm run audit && npm run contrast",
     "serve": "npx --yes serve . -l 4173"
   },
   "devDependencies": {

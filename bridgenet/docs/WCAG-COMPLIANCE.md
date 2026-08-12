@@ -72,16 +72,25 @@ and with the W3C Web Accessibility Initiative's digital-inclusion guidance.
 - Untranslated UI chrome (e.g. language button label) is marked with the
   correct `lang` so screen readers switch voices appropriately.
 
-## 4. Contrast ratios (verified by design, re-checked in-browser)
+## 4. Contrast ratios (computed from the shipped CSS by `scripts/contrast-check.mjs` — gated in CI)
 
-| Pair | Ratio | Requirement |
+| Pair | Computed ratio | Requirement |
 |---|---|---|
-| `--fg #1d2a2a` on `--bg #fdfbf5` | ≈ 13.4 : 1 | ≥ 4.5 ✓ |
-| `--fg-soft #3d4f4f` on `--bg #fdfbf5` | ≈ 7.0 : 1 | ≥ 4.5 ✓ |
-| `--link #07507a` on `--bg #fdfbf5` | ≈ 7.6 : 1 | ≥ 4.5 ✓ |
-| `--accent-fg #ffffff` on `--accent #0f3d3e` | ≈ 9.8 : 1 | ≥ 4.5 ✓ |
-| High-contrast theme (black/white + `#ffd166`) | ≥ 12 : 1 everywhere | ≥ 7 (AAA) ✓ |
-| Focus outline `#b35500` on light | ≈ 5.4 : 1 | ≥ 3 : 1 (non-text) ✓ |
+| `--fg #1d2a2a` on `--bg #fdfbf5` | 14.32 : 1 | ≥ 4.5 ✓ |
+| `--fg-soft #3d4f4f` on `--bg #fdfbf5` | 8.35 : 1 | ≥ 4.5 ✓ |
+| `--link #07507a` on `--bg #fdfbf5` | 8.33 : 1 | ≥ 4.5 ✓ |
+| `--accent-fg #ffffff` on `--accent #0f3d3e` | 11.95 : 1 | ≥ 4.5 ✓ |
+| `--chip-fg #ffffff` on `--chip-on #0f3d3e` | 11.95 : 1 | ≥ 4.5 ✓ |
+| `--fg #1d2a2a` on `--bg-alt #f2efe4` (alt surfaces) | 12.88 : 1 | ≥ 4.5 ✓ |
+| `--border #6f8181` on `--bg` (non-text, 1.4.11) | 3.95 : 1 | ≥ 3 : 1 ✓ |
+| Focus outline `--focus #b35500` on `--bg` (non-text) | 4.81 : 1 | ≥ 3 : 1 ✓ |
+| High-contrast theme: `#ffffff` on `#000000` | 21.00 : 1 | ≥ 7 (AAA) ✓ |
+| High-contrast theme: `#000000` on `#ffd166` | 14.56 : 1 | ≥ 7 (AAA) ✓ |
+| High-contrast theme: `#f2f2f2` soft text on black | 18.76 : 1 | ≥ 7 (AAA) ✓ |
+
+*Six early color choices were tool-verified and one was patched before release:
+the original border `#8a9b9b` measured 2.80:1 (below the 3:1 non-text
+threshold) and was darkened to `#6f8181` (3.95:1).*
 
 ## 5. Assistive technology notes
 
@@ -100,8 +109,10 @@ and with the W3C Web Accessibility Initiative's digital-inclusion guidance.
 
 - `scripts/audit.mjs` runs axe-core against three DOM states (static,
   JS-English, JS-Arabic) with tags `wcag2a/2aa/21a/21aa/22aa` in CI.
-- `color-contrast` cannot be fully computed in jsdom (no layout engine);
-  ratios above are verified by construction and re-checked in a real
-  browser run (see CI artifacts / manual QA checklist).
+- `scripts/contrast-check.mjs` computes WCAG relative-luminance contrast
+  for every documented palette pair (both themes) directly from the CSS
+  values — the deterministic color-contrast gate that axe cannot run
+  under jsdom (no layout engine).
+- `npm test` = audit + contrast; both must pass for CI to go green.
 - Automated audits are not a substitute for human AT testing; the checklist
   above is the manual companion.

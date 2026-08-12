@@ -13,7 +13,7 @@
   --accent: #0f3d3e;        /* dark teal */
   --accent-fg: #ffffff;     /* on accent: 10.4:1 contrast */
   --link: #07507a;          /* blue-ink link: 7.6:1 on --bg */
-  --border: #8a9b9b;
+  --border: #6f8181;          /* 3.95:1 on --bg (WCAG 1.4.11 ≥3:1) */
   --focus: #b35500;         /* amber outline, visible on light */
   --chip-on: #0f3d3e;
   --chip-fg: #ffffff;
